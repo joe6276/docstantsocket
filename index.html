@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head><title>Chat System</title></head>
+<body>
+  <h2>Simple Chat</h2>
+
+  <div id="chatBox" style="border:1px solid #ccc; padding:10px; height:200px; overflow-y:scroll;"></div>
+  <input id="chatInput" placeholder="Type your message..." />
+  <button onclick="sendMessage()">Send</button>
+
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <script>
+    const socket = io("http://localhost:4000");
+
+    const currentUser = "user123";      // simulate sender
+    const chatPartner = "user456";      // simulate receiver
+
+    socket.emit("register", currentUser);
+    socket.emit("load_chat", { userA: currentUser, userB: chatPartner });
+
+    socket.on("chat_history", (messages) => {
+      const box = document.getElementById("chatBox");
+      box.innerHTML = "";
+      messages.forEach(msg => {
+        box.innerHTML += `<p><b>${msg.SenderId}</b>: ${msg.Content}</p>`;
+      });
+    });
+
+    socket.on("chat_message", (data) => {
+        console.log(data);
+        
+      const box = document.getElementById("chatBox");
+      box.innerHTML += `<p><b>${data.senderId}</b>: ${data.content}</p>`;
+      box.scrollTop = box.scrollHeight;
+    });
+
+    function sendMessage() {
+      const message = document.getElementById("chatInput").value;
+      socket.emit("chat_message", {
+        senderId: currentUser,
+        receiverId: chatPartner,
+        content:message
+      });
+      document.getElementById("chatInput").value = "";
+    }
+  </script>
+</body>
+</html>
