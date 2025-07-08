@@ -4,6 +4,9 @@ const cors = require('cors')
 const { Server } = require('socket.io')
 const mssql = require('mssql')
 const { sqlConfig } = require('./config')
+const dotenv = require("dotenv")
+dotenv.config()
+
 
 const app = express()
 app.use(cors())
@@ -112,7 +115,7 @@ VALUES (
 
 })
 
-server.listen(4000, () => {
-    console.log('Server Running on 4000:');
+server.listen(process.env.PORT, () => {
+    console.log('Server Running on:',process.env.PORT);
 
 })
