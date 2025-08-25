@@ -15,41 +15,41 @@ const server = http.createServer(app);
 
 
 const io = new Server(server, {
-    cors: {
-        origin: "*"
-    }
+  cors: {
+    origin: "*"
+  }
 })
 
 const connectedUsers = {};
 
 
 io.on("connection", async (socket) => {
-    console.log(" new user connected", socket.id);
+  console.log(" new user connected", socket.id);
 
-    socket.on("register", (userId) => {
-        connectedUsers[userId] = socket.id;
-    });
-    socket.on("chat_message", async (data) => {
-        const { senderId, receiverId, content } = data;
-        // Save to DB
-        try {
-            console.log(senderId,receiverId,content);
-            
-            const pool = await mssql.connect(sqlConfig);
-            await pool.request()
-                .query(`INSERT INTO Messages (senderId, receiverId, content, createdAt) VALUES ('${senderId}', '${receiverId}', '${content}',GETDATE())`);
+  socket.on("register", (userId) => {
+    connectedUsers[userId] = socket.id;
+  });
+  socket.on("chat_message", async (data) => {
+    const { senderId, receiverId, content } = data;
+    // Save to DB
+    try {
+      console.log(senderId, receiverId, content);
 
-            const receiverSocket = connectedUsers[receiverId];
-            if (receiverSocket) {
-                io.to(receiverSocket).emit("receive_message", { senderId, message });
-            }
-        } catch (error) {
-            console.log(error);
-            
-        }
-    })
+      const pool = await mssql.connect(sqlConfig);
+      await pool.request()
+        .query(`INSERT INTO Messages (senderId, receiverId, content, createdAt) VALUES ('${senderId}', '${receiverId}', '${content}',GETDATE())`);
 
-     // Load chat history
+      const receiverSocket = connectedUsers[receiverId];
+      if (receiverSocket) {
+        io.to(receiverSocket).emit("receive_message", { senderId, message });
+      }
+    } catch (error) {
+      console.log(error);
+
+    }
+  })
+
+  // Load chat history
   socket.on("load_chat", async (data) => {
     const { userA, userB } = data;
     const pool = await mssql.connect(sqlConfig);
@@ -67,42 +67,81 @@ io.on("connection", async (socket) => {
     socket.emit("chat_history", result.recordset);
   });
 
-    socket.on('notify', async (data) => {
-        try {
-            const { userId, title, message, fromUserId, toUserId, fromDepartment, toDepartment } = data
-            const query = `INSERT INTO Notifications (
-  Title,
-  Message,
-  FromUserId,
-  ToUserId,
-  FromDepartment,
-  ToDepartment,
-  CreatedAt,
-  IsRead
-)
-VALUES (
-  '${title}',
-  '${message}',
-  '${fromUserId}',
-  '${toUserId}',
-  '${fromDepartment}',
-  '${toDepartment}',
-  GETDATE(),
-  0
-);`
+  //     socket.on('notify', async (data) => {
+  //         try {
+  //             const { userId, title, message, fromUserId, toUserId, fromDepartment, toDepartment } = data
+  //             const query = `INSERT INTO Notifications (
+  //   Title,
+  //   Message,
+  //   FromUserId,
+  //   ToUserId,
+  //   FromDepartment,
+  //   ToDepartment,
+  //   CreatedAt,
+  //   IsRead
+  // )
+  // VALUES (
+  //   '${title}',
+  //   '${message}',
+  //   '${fromUserId}',
+  //   '${toUserId}',
+  //   '${fromDepartment}',
+  //   '${toDepartment}',
+  //   GETDATE(),
+  //   0
+  // );`
 
-            const pool = await mssql.connect(sqlConfig)
-            await pool.request().query(query)
+  //             const pool = await mssql.connect(sqlConfig)
+  //             await pool.request().query(query)
 
-            const targetSocket = connectedUsers[userId];
-            if (targetSocket) {
-                io.to(targetSocket).emit("new_notification", { message });
-            }
-        } catch (error) {
-            console.error("Error sending notification:", err);
+  //             const targetSocket = connectedUsers[userId];
+  //             if (targetSocket) {
+  //                 io.to(targetSocket).emit("new_notification", { message });
+  //             }
+  //         } catch (error) {
+  //             console.error("Error sending notification:", err);
+  //         }
+
+  //     })
+
+  socket.on('notify', async (data) => {
+    try {
+      const {
+        userId,
+        title,
+        message,
+        fromUserId,
+        toUserIds,
+        fromDepartment,
+        toDepartment
+      } = data;
+
+      const pool = await mssql.connect(sqlConfig);
+
+      for (const toUserId of toUserIds) {
+        // Insert into DB
+        const query = `
+        INSERT INTO Notifications (
+          Title, Message, FromUserId, ToUserId,
+          FromDepartment, ToDepartment, CreatedAt, IsRead
+        )
+        VALUES (
+          '${title}', '${message}', '${fromUserId}', '${toUserId}',
+          '${fromDepartment}', '${toDepartment}', GETDATE(), 0
+        );
+      `;
+        await pool.request().query(query);
+
+        // Emit to recipient if online
+        const targetSocket = connectedUsers[toUserId];
+        if (targetSocket) {
+          io.to(targetSocket).emit("new_notification", { message });
         }
-
-    })
+      }
+    } catch (err) {
+      console.error("Error sending notifications:", err);
+    }
+  });
 
   socket.on("disconnect", () => {
     for (const uid in connectedUsers) {
@@ -120,6 +159,6 @@ app.get("/test",(req, res)=>{
   return res.status(200).send("<h1>App is Running </h1>")
 })
 server.listen(process.env.PORT, () => {
-    console.log('Server Running on:',process.env.PORT);
+  console.log('Server Running on:', process.env.PORT);
 
 })
