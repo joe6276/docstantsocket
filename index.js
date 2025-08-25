@@ -158,7 +158,8 @@ io.on("connection", async (socket) => {
 app.get("/test",(req, res)=>{
   return res.status(200).send("<h1>App is Running </h1>")
 })
-server.listen(process.env.PORT, () => {
-  console.log('Server Running on:', process.env.PORT);
+const port = process.env.PORT || 80
+server.listen(port, () => {
+  console.log('Server Running on:', 80);
 
 })
