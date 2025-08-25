@@ -115,6 +115,10 @@ VALUES (
 
 })
 
+
+app.get("/test",(req, res)=>{
+  return res.status(200).send("<h1>App is Running </h1>")
+})
 server.listen(process.env.PORT, () => {
     console.log('Server Running on:',process.env.PORT);
 

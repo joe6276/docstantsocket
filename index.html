@@ -1,47 +1,61 @@
 <!DOCTYPE html>
 <html>
-<head><title>Chat System</title></head>
+<head><title>Chat</title></head>
 <body>
-  <h2>Simple Chat</h2>
-
-  <div id="chatBox" style="border:1px solid #ccc; padding:10px; height:200px; overflow-y:scroll;"></div>
-  <input id="chatInput" placeholder="Type your message..." />
+   <input id="id" />
+  <input id="msg" />
   <button onclick="sendMessage()">Send</button>
+  <div id="chat"></div>
+
+  <h2>Send Dummy Notification</h2>
+  <button onclick="sendDummyNotification()">Notify</button>
+
+
 
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
   <script>
-    const socket = io("http://localhost:4000");
+    const socket = io("https://docstantsocket-aad4fpamd9cyeebf.canadacentral-01.azurewebsites.net");
 
-    const currentUser = "user123";      // simulate sender
-    const chatPartner = "user456";      // simulate receiver
+    const userId = 1;
+    socket.emit("register", userId);
 
-    socket.emit("register", currentUser);
-    socket.emit("load_chat", { userA: currentUser, userB: chatPartner });
-
-    socket.on("chat_history", (messages) => {
-      const box = document.getElementById("chatBox");
-      box.innerHTML = "";
-      messages.forEach(msg => {
-        box.innerHTML += `<p><b>${msg.SenderId}</b>: ${msg.Content}</p>`;
-      });
+    socket.on("receive_message", (data) => {
+      document.getElementById("chat").innerHTML += `<p><b>${data.senderId}</b>: ${data.message}</p>`;
     });
 
-    socket.on("chat_message", (data) => {
-        console.log(data);
-        
-      const box = document.getElementById("chatBox");
-      box.innerHTML += `<p><b>${data.senderId}</b>: ${data.content}</p>`;
-      box.scrollTop = box.scrollHeight;
+    socket.on("new_notification", (data) => {
+      alert("🔔 Notification: " + data.message);
     });
+
+
+
+
 
     function sendMessage() {
-      const message = document.getElementById("chatInput").value;
-      socket.emit("chat_message", {
-        senderId: currentUser,
-        receiverId: chatPartner,
-        content:message
+      const message = document.getElementById("msg").value;
+      socket.emit("send_message", {
+        senderId: 2,
+        receiverId: 1,
+        message: message
       });
-      document.getElementById("chatInput").value = "";
+    }
+
+
+    function sendDummyNotification() {
+      const data = {
+        title: "System Maintenance",
+        message: "System will be down tonight at 10PM.",
+        fromUserId: "admin001",
+        toUserId: "1",
+        fromDepartment: "IT",
+        toDepartment: "Finance",
+        userId:1,
+        createdAt: new Date(),
+        isRead: false
+      };
+
+      console.log("📤 Emitting dummy notification:", data);
+      socket.emit("notify", data);
     }
   </script>
 </body>
